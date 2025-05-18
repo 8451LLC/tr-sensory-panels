@@ -41,6 +41,47 @@ def execute_sql_query(
     return result
 
 
+class SQLWarehouse:
+    """
+    A class to manage connections to a Databricks SQL warehouse
+    and execute queries.
+    """
+
+    def __init__(self, server_hostname: str, http_path: str, access_token: str):
+        """
+        Initializes the SQLWarehouse object with connection details.
+
+        Args:
+            server_hostname: The server hostname of the Databricks SQL
+                warehouse.
+            http_path: The HTTP path of the Databricks SQL warehouse.
+            access_token: The access token for authentication.
+        """
+        self.server_hostname = server_hostname
+        self.http_path = http_path
+        self.access_token = access_token
+
+    def query(self, query_string: str) -> list:
+        """
+        Connects to the Databricks SQL warehouse and executes a SQL query.
+
+        Args:
+            query_string: The SQL query to execute.
+
+        Returns:
+            A list of tuples representing the query results.
+        """
+        with sql.connect(
+            server_hostname=self.server_hostname,
+            http_path=self.http_path,
+            access_token=self.access_token,
+        ) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(query_string)
+                result = cursor.fetchall()
+        return result
+
+
 def list_catalogs(client: WorkspaceClient) -> list[str]:
     """
     Lists all catalog names in the Unity Catalog.
@@ -65,11 +106,7 @@ def list_schemas(client: WorkspaceClient, catalog_name: str) -> list[str]:
     Returns:
         A list of schema names.
     """
-    return [
-        s.name
-        for s in client.schemas.list(catalog_name=catalog_name)
-        if s.name
-    ]
+    return [s.name for s in client.schemas.list(catalog_name=catalog_name) if s.name]
 
 
 def list_tables(
@@ -88,8 +125,6 @@ def list_tables(
     """
     return [
         t.name
-        for t in client.tables.list(
-            catalog_name=catalog_name, schema_name=schema_name
-        )
+        for t in client.tables.list(catalog_name=catalog_name, schema_name=schema_name)
         if t.name
     ]

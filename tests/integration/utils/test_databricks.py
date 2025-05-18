@@ -2,7 +2,11 @@ import pytest
 from dotenv import load_dotenv
 import os
 
-from sensory.utils.databricks import get_workspace_client, execute_sql_query
+from sensory.utils.databricks import (
+    get_workspace_client,
+    execute_sql_query,
+    SQLWarehouse,
+)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -64,6 +68,42 @@ def test_execute_sql_query_success():
         # If the table has data, result will be a list of tuples.
         if result:
             assert isinstance(result[0], tuple), "Query result rows should be tuples."
-        print(f"Successfully executed SQL query. " f"Result has {len(result)} row(s).")
+        print(f"Successfully executed SQL query. Result has {len(result)} row(s).")
     except Exception as e:
         pytest.fail(f"execute_sql_query failed: {e}")
+
+
+def test_sql_warehouse_query_success():
+    """
+    Tests that SQLWarehouse can successfully execute a query.
+    It attempts to select the first row from a known table.
+    """
+    server_hostname = os.getenv("DATABRICKS_HOST")
+    http_path = os.getenv("DATABRICKS_HTTP_PATH")
+    access_token = os.getenv("DATABRICKS_TOKEN")
+    query = (
+        "SELECT * FROM "
+        "manufacturing_dev.work_agent_barney.master_sensory_responses_bronze "
+        "LIMIT 1"
+    )
+
+    assert server_hostname, "DATABRICKS_HOST environment variable not set."
+    assert http_path, "DATABRICKS_HTTP_PATH environment variable not set."
+    assert access_token, "DATABRICKS_TOKEN environment variable not set."
+
+    try:
+        warehouse = SQLWarehouse(
+            server_hostname=server_hostname,
+            http_path=http_path,
+            access_token=access_token,
+        )
+        result = warehouse.query(query)
+        assert isinstance(result, list), "Query result should be a list."
+        if result:
+            assert isinstance(result[0], tuple), "Query result rows should be tuples."
+        print(
+            f"Successfully executed SQLWarehouse.query. "
+            f"Result has {len(result)} row(s)."
+        )
+    except Exception as e:
+        pytest.fail(f"SQLWarehouse.query failed: {e}")
