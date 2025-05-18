@@ -20,7 +20,6 @@ def test_get_workspace_client_connects():
     try:
         client = get_workspace_client()
         # Perform a simple operation to check the connection
-        # As of my last update, w.current_user.me() is a common way to get current user info.
         user_settings = client.current_user.me()
         assert user_settings is not None, "Should retrieve current user settings."
         print(
