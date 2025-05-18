@@ -39,3 +39,57 @@ def execute_sql_query(
             cursor.execute(query)
             result = cursor.fetchall()
     return result
+
+
+def list_catalogs(client: WorkspaceClient) -> list[str]:
+    """
+    Lists all catalog names in the Unity Catalog.
+
+    Args:
+        client: An initialized Databricks WorkspaceClient.
+
+    Returns:
+        A list of catalog names.
+    """
+    return [c.name for c in client.catalogs.list() if c.name]
+
+
+def list_schemas(client: WorkspaceClient, catalog_name: str) -> list[str]:
+    """
+    Lists all schema names within a specified catalog.
+
+    Args:
+        client: An initialized Databricks WorkspaceClient.
+        catalog_name: The name of the catalog.
+
+    Returns:
+        A list of schema names.
+    """
+    return [
+        s.name
+        for s in client.schemas.list(catalog_name=catalog_name)
+        if s.name
+    ]
+
+
+def list_tables(
+    client: WorkspaceClient, catalog_name: str, schema_name: str
+) -> list[str]:
+    """
+    Lists all table names within a specified catalog and schema.
+
+    Args:
+        client: An initialized Databricks WorkspaceClient.
+        catalog_name: The name of the catalog.
+        schema_name: The name of the schema.
+
+    Returns:
+        A list of table names.
+    """
+    return [
+        t.name
+        for t in client.tables.list(
+            catalog_name=catalog_name, schema_name=schema_name
+        )
+        if t.name
+    ]
