@@ -1,5 +1,6 @@
 from databricks.sdk import WorkspaceClient
 from databricks import sql
+import os
 
 
 def get_workspace_client() -> WorkspaceClient:
@@ -47,19 +48,33 @@ class SQLWarehouse:
     and execute queries.
     """
 
-    def __init__(self, server_hostname: str, http_path: str, access_token: str):
+    def __init__(
+        self,
+        server_hostname: str | None = None,
+        http_path: str | None = None,
+        access_token: str | None = None,
+    ):
         """
         Initializes the SQLWarehouse object with connection details.
 
         Args:
             server_hostname: The server hostname of the Databricks SQL
-                warehouse.
+                warehouse. Defaults to os.getenv("DATABRICKS_HOST").
             http_path: The HTTP path of the Databricks SQL warehouse.
+                Defaults to os.getenv("DATABRICKS_HTTP_PATH").
             access_token: The access token for authentication.
+                Defaults to os.getenv("DATABRICKS_TOKEN").
         """
-        self.server_hostname = server_hostname
-        self.http_path = http_path
-        self.access_token = access_token
+        self.server_hostname = server_hostname or os.getenv("DATABRICKS_HOST")
+        self.http_path = http_path or os.getenv("DATABRICKS_HTTP_PATH")
+        self.access_token = access_token or os.getenv("DATABRICKS_TOKEN")
+
+        if not self.server_hostname:
+            raise ValueError("server_hostname must be provided or DATABRICKS_HOST set")
+        if not self.http_path:
+            raise ValueError("http_path must be provided or DATABRICKS_HTTP_PATH set")
+        if not self.access_token:
+            raise ValueError("access_token must be provided or DATABRICKS_TOKEN set")
 
     def query(self, query_string: str) -> list:
         """
