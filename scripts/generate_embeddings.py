@@ -59,7 +59,16 @@ def generate_embeddings(openai_client, texts):
     return [item.embedding for item in response.data]
 
 
-def update_embeddings(sql, df, catalog, schema, table, pk):
+def insert_temp_embeddings(sql, df, catalog, schema, temp_table, pk):
+    # Drop temp table if exists
+    sql.query(f"DROP TABLE IF EXISTS {catalog}.{schema}.{temp_table}")
+    # Create temp table
+    sql.query(
+        f"CREATE TABLE {catalog}.{schema}.{temp_table} ("
+        f"{pk} STRING, data_embedding ARRAY<FLOAT>)"
+    )
+    # Prepare all values for bulk insert
+    values = []
     for _, row in df.iterrows():
         emb = row["embedding"]
         if not isinstance(emb, list):
@@ -72,12 +81,22 @@ def update_embeddings(sql, df, catalog, schema, table, pk):
             if isinstance(pk_val, str)
             else str(pk_val)
         )
-        update = f"""
-            UPDATE {catalog}.{schema}.{table}
-            SET data_embedding = {emb_sql}
-            WHERE {pk} = {pk_sql}
-        """
-        sql.query(update)
+        values.append(f"({pk_sql}, {emb_sql})")
+    if values:
+        insert = f"INSERT INTO {catalog}.{schema}.{temp_table} VALUES " + ", ".join(
+            values
+        )
+        sql.query(insert)
+
+
+def merge_embeddings(sql, catalog, schema, temp_table, target_table, pk):
+    merge_sql = f"""
+    MERGE INTO {catalog}.{schema}.{target_table} AS target
+    USING {catalog}.{schema}.{temp_table} AS source
+    ON target.{pk} = source.{pk}
+    WHEN MATCHED THEN UPDATE SET target.data_embedding = source.data_embedding
+    """
+    sql.query(merge_sql)
 
 
 def main():
@@ -90,6 +109,7 @@ def main():
     schema = os.getenv("DATABRICKS_SCHEMA", "work_agent_barney")
     table = "master_sensory_panel_joined_silver"
     pk = "item_spec_number"
+    temp_table = "temp_embeddings"
 
     df = fetch_records(sql, catalog, schema, table, pk, BATCH_SIZE)
     if df.empty:
@@ -97,8 +117,9 @@ def main():
         return
     df["text"] = df["data"].apply(serialize_data)
     df["embedding"] = generate_embeddings(openai_client, df["text"].tolist())
-    update_embeddings(sql, df, catalog, schema, table, pk)
-    logging.info(f"Updated {len(df)} records.")
+    insert_temp_embeddings(sql, df, catalog, schema, temp_table, pk)
+    merge_embeddings(sql, catalog, schema, temp_table, table, pk)
+    logging.info(f"Merged {len(df)} records via temp table.")
 
 
 if __name__ == "__main__":
