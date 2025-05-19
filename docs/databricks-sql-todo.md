@@ -11,12 +11,12 @@ This list is derived from the `databricks-sql-prd.md` document.
     - [x] Run `uv pip install .` (or equivalent for the project setup) to install/update dependencies.
 
 ## Phase 2: SQLAlchemy Engine Creation
-- [ ] **Modify `src/sensory/utils/databricks.py`**:
-    - [ ] Import `create_engine` from `sqlalchemy`.
-    - [ ] Define a new function `get_sqlalchemy_engine()`.
-        - [ ] Inside `get_sqlalchemy_engine()`, retrieve `DATABRICKS_HOST`, `DATABRICKS_HTTP_PATH`, and `DATABRICKS_TOKEN` from environment variables.
-        - [ ] Construct the SQLAlchemy connection URI in the format: `databricks://token:<your_databricks_token>@<your_server_hostname>?http_path=<your_http_path>`.
-        - [ ] Create and return the SQLAlchemy engine using `create_engine(connection_uri)`.
+- [x] **Modify `src/sensory/utils/databricks.py`**:
+    - [x] Import `create_engine` from `sqlalchemy`.
+    - [x] Define a new function `get_sqlalchemy_engine()`.
+        - [x] Inside `get_sqlalchemy_engine()`, retrieve `DATABRICKS_HOST`, `DATABRICKS_HTTP_PATH`, and `DATABRICKS_TOKEN` from environment variables.
+        - [x] Construct the SQLAlchemy connection URI in the format: `databricks://token:<your_databricks_token>@<your_server_hostname>?http_path=<your_http_path>`.
+        - [x] Create and return the SQLAlchemy engine using `create_engine(connection_uri)`.
 
 ## Phase 3: Langchain Integration
 - [ ] **Modify `src/sensory/react_agent/tools.py`** (or the relevant agent assembly file, e.g., `graph.py`):

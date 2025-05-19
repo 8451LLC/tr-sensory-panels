@@ -1,6 +1,7 @@
 from databricks.sdk import WorkspaceClient
 from databricks import sql
 import os
+from sqlalchemy import create_engine
 
 
 def get_workspace_client() -> WorkspaceClient:
@@ -14,6 +15,37 @@ def get_workspace_client() -> WorkspaceClient:
         WorkspaceClient: An initialized Databricks WorkspaceClient.
     """
     return WorkspaceClient()
+
+
+def get_sqlalchemy_engine():
+    """
+    Creates a SQLAlchemy engine for Databricks SQL Warehouse.
+
+    Retrieves connection parameters (DATABRICKS_HOST, DATABRICKS_HTTP_PATH,
+    DATABRICKS_TOKEN) from environment variables.
+
+    Returns:
+        sqlalchemy.engine.Engine: An initialized SQLAlchemy engine.
+
+    Raises:
+        ValueError: If any of the required environment variables are not set.
+    """
+    server_hostname = os.getenv("DATABRICKS_HOST")
+    http_path = os.getenv("DATABRICKS_HTTP_PATH")
+    access_token = os.getenv("DATABRICKS_TOKEN")
+
+    if not server_hostname:
+        raise ValueError("DATABRICKS_HOST environment variable not set.")
+    if not http_path:
+        raise ValueError("DATABRICKS_HTTP_PATH environment variable not set.")
+    if not access_token:
+        raise ValueError("DATABRICKS_TOKEN environment variable not set.")
+
+    connection_uri = (
+        f"databricks://token:{access_token}@{server_hostname}?"
+        f"http_path={http_path}"
+    )
+    return create_engine(connection_uri)
 
 
 def execute_sql_query(
