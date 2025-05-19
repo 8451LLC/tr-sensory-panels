@@ -1,156 +1,105 @@
 # Databricks notebook source
-from pyspark.sql import functions as f
-from openai import OpenAI
-import os
-import json
-from dotenv import load_dotenv
-
-CATALOG = "manufacturing_dev"
-SCHEMA = "work_agent_barney"
-TABLE = "master_sensory_panel_joined_silver"
-PK = "item_spec_number"
-BATCH_SIZE = 5  # Adjust as needed
+# MAGIC %pip install openai
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## Generate and Merge OpenAI Embeddings in Databricks
+import os, getpass
 
-# COMMAND ----------
-
-
-def serialize_data(val):
-    if val is None:
-        return ""
-    if isinstance(val, str):
-        try:
-            parsed = json.loads(val)
-            if isinstance(parsed, (dict, list)):
-                return json.dumps(parsed, default=str, sort_keys=True)
-            return val
-        except json.JSONDecodeError:
-            return val
-    try:
-        return json.dumps(val, default=str, sort_keys=True)
-    except Exception:
-        return ""
+from delta.tables import DeltaTable
+import openai
+from pyspark.sql import DataFrame
+import pyspark.sql.functions as f
+import pyspark.sql.types as t
 
 
-# COMMAND ----------
+# Constants
+CATALOG = 'manufacturing_dev'
+SCHEMA = 'work_agent_barney'
+TABLE = 'manufacturing_dev.work_agent_barney.master_sensory_responses_collected_silver'
+PK = ['test_id', 'unique_panelist_id']
+BATCH_SIZE = 5
+OPENAI_API_BASE='https://api-internal.8451.com/ai/proxy/'
 
 
-def fetch_records(spark, catalog, schema, table, pk, limit):
-    df = spark.sql(
-        f"""
-        SELECT {pk}, data
-        FROM {catalog}.{schema}.{table}
-        WHERE data_embedding IS NULL
-        ORDER BY {pk} ASC
-        LIMIT {limit}
-    """
-    )
-    return df
+
+def _set_env(var: str):
+    if not os.environ.get(var):
+        os.environ[var] = getpass.getpass(f"{var}: ")
 
 
-# COMMAND ----------
+# Set env vars
+_set_env('OPENAI_API_KEY')
+os.environ['OPENAI_API_BASE'] = OPENAI_API_BASE
 
 
-def generate_embeddings(openai_client, texts):
-    response = openai_client.embeddings.create(
-        model="text-embedding-3-small", input=texts
-    )
-    return [item.embedding for item in response.data]
-
-
-# COMMAND ----------
-
-
-def insert_temp_embeddings(spark, df, catalog, schema, temp_table, pk):
-    # Drop temp table if exists
-    spark.sql(f"DROP TABLE IF EXISTS {catalog}.{schema}.{temp_table}")
-    # Write DataFrame to temp table
-    (
-        df.write.mode("overwrite")
-        .format("delta")
-        .saveAsTable(f"{catalog}.{schema}.{temp_table}")
-    )
-
-
-# COMMAND ----------
-
-
-def merge_embeddings(spark, catalog, schema, temp_table, target_table, pk):
-    merge_sql = f"""
-    MERGE INTO {catalog}.{schema}.{target_table} AS target
-    USING {catalog}.{schema}.{temp_table} AS source
-    ON target.{pk} = source.{pk}
-    WHEN MATCHED THEN UPDATE SET target.data_embedding = source.data_embedding
-    """
-    spark.sql(merge_sql)
-
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Main Embedding Update Logic
-
-# COMMAND ----------
-
-load_dotenv()
-openai_client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE")
+# Init OpenAI client
+openai_client = openai.OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    base_url=os.environ.get("OPENAI_API_BASE"),
 )
-catalog = os.getenv("DATABRICKS_CATALOG", CATALOG)
-schema = os.getenv("DATABRICKS_SCHEMA", SCHEMA)
-table = TABLE
-pk = PK
-temp_table = "temp_embeddings"
 
+# COMMAND ----------
 
-def update_embeddings_inplace(
-    spark_session, openai_client, catalog, schema, table, pk, batch_size
-):
-    # Fetch records with null embedding
-    df = (
-        spark_session.read.table(f"{catalog}.{schema}.{table}")
+def fetch_records(table: str, pk: str | list[str], limit: int, data_col='data') -> DataFrame:
+    pk = pk if isinstance(pk, list) else [pk]
+    return (
+        spark.read.table(table)
+        .select(*pk, f.to_json(data_col).alias("text"))
         .filter(f.col("data_embedding").isNull())
-        .orderBy(pk)
-        .limit(batch_size)
+        .limit(limit)
     )
-    if df.count() == 0:
-        print("No records to process.")
-        return
-    # Serialize data for embedding
-    records_pd = df.toPandas()
-    records_pd["text"] = records_pd["data"].apply(serialize_data)
-    records_pd["embedding"] = generate_embeddings(
-        openai_client, records_pd["text"].tolist()
+
+
+records_df = fetch_records(TABLE, PK, BATCH_SIZE)
+display(records_df)
+
+# COMMAND ----------
+
+def generate_embeddings_df(openai_client: openai.OpenAI, records_df: DataFrame, pk: str | list[str]):
+    # Collect the records into memory
+    collected = records_df.collect()
+
+    # Extract text for embedding
+    texts = [row.text for row in collected]
+
+    # Generate embeddings
+    response = openai_client.embeddings.create(model="text-embedding-3-small", input=texts)
+    embeddings = [item.embedding for item in response.data]
+
+    # Create new DataFrame
+    schema = t.StructType(
+        [t.StructField(k, t.StringType(), False) for k in pk] + # assumes pk is a StringType
+        [t.StructField("text", t.StringType(), False), t.StructField("data_embedding", t.ArrayType(t.FloatType()), False)]
     )
-    # Create DataFrame with pk and embedding
-    emb_df = spark_session.createDataFrame(records_pd[[pk, "embedding"]])
-    # Join and update in place using DataFrame operations
-    orig_df = spark_session.read.table(f"{catalog}.{schema}.{table}")
-    updated_df = (
-        orig_df.alias("orig")
-        .join(emb_df.alias("emb"), f.col(f"orig.{pk}") == f.col(f"emb.{pk}"), "left")
-        .withColumn(
-            "data_embedding",
-            f.when(
-                f.col("emb.embedding").isNotNull(), f.col("emb.embedding")
-            ).otherwise(f.col("orig.data_embedding")),
-        )
-        .drop(f"emb.{pk}")
-        .drop("embedding")
-    )
-    # Overwrite the table with updated embeddings
+    data_with_embeddings = [(*[row[pk] for pk in PK], row.text, embedding) for row, embedding in zip(collected, embeddings)]
+    embeddings_df = spark.createDataFrame(data_with_embeddings, schema=schema)
+
+    return embeddings_df
+
+
+embeddings_df = generate_embeddings_df(openai_client, records_df, PK)
+display(embeddings_df)
+
+# COMMAND ----------
+
+def merge_embeddings(target_table: str, source_df: DataFrame, pk: str | list[str]) -> None:
+    # Merge condition on primary key
+    merge_condition = " AND ".join([f"t.{key} = s.{key}" for key in pk])
+
+    # Initialize DeltaTable
+    delta_table = DeltaTable.forName(spark, target_table)
+
+    # Merge embeddings into target Delta table
     (
-        updated_df.write.mode("overwrite")
-        .format("delta")
-        .option("overwriteSchema", "true")
-        .saveAsTable(f"{catalog}.{schema}.{table}")
+        delta_table.alias("t")
+        .merge(source=source_df.alias("s"), condition=merge_condition)
+        .whenMatchedUpdate(set={"t.data_embedding": f"s.data_embedding",})
+        .execute()
     )
-    print(f"Updated {len(records_pd)} records in place.")
 
+merge_embeddings(TABLE, embeddings_df, PK)
 
-# Call the function using the Databricks 'spark' session
-update_embeddings_inplace(spark, openai_client, catalog, schema, table, pk, BATCH_SIZE)
+# COMMAND ----------
+
+test = spark.read.table(TABLE)
+display(test.filter(f.col("data_embedding").isNotNull()))
