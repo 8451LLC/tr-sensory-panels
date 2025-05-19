@@ -19,16 +19,16 @@ This list is derived from the `databricks-sql-prd.md` document.
         - [x] Create and return the SQLAlchemy engine using `create_engine(connection_uri)`.
 
 ## Phase 3: Langchain Integration
-- [ ] **Modify `src/sensory/react_agent/tools.py`** (or the relevant agent assembly file, e.g., `graph.py`):
-    - [ ] Import `SQLDatabase` from `langchain_community.utilities`.
-    - [ ] Import `SQLDatabaseToolkit` from `langchain_community.agent_toolkits`.
-    - [ ] Import the new `get_sqlalchemy_engine` function from `src.sensory.utils.databricks`.
-    - [ ] In the tool definition or provisioning section:
-        - [ ] Get the SQLAlchemy engine by calling `get_sqlalchemy_engine()`.
-        - [ ] Create an `SQLDatabase` instance: `db = SQLDatabase(engine=engine)`.
-        - [ ] Create an `SQLDatabaseToolkit` instance: `toolkit = SQLDatabaseToolkit(db=db, llm=your_llm_instance)`. (Ensure `your_llm_instance` is correctly referenced/passed).
-        - [ ] Get the tools from the toolkit: `sql_tools = toolkit.get_tools()`.
-        - [ ] Add the `sql_tools` to the agent's available tools, potentially replacing existing custom database tools.
+- [x] **Modify `src/sensory/react_agent/tools.py`** (or the relevant agent assembly file, e.g., `graph.py`):
+    - [x] Import `SQLDatabase` from `langchain_community.utilities`.
+    - [x] Import `SQLDatabaseToolkit` from `langchain_community.agent_toolkits`.
+    - [x] Import the new `get_sqlalchemy_engine` function from `src.sensory.utils.databricks`.
+    - [x] In the tool definition or provisioning section:
+        - [x] Get the SQLAlchemy engine by calling `get_sqlalchemy_engine()`.
+        - [x] Create an `SQLDatabase` instance: `db = SQLDatabase(engine=engine)`.
+        - [x] Create an `SQLDatabaseToolkit` instance: `toolkit = SQLDatabaseToolkit(db=db, llm=your_llm_instance)`. (Ensure `your_llm_instance` is correctly referenced/passed).
+        - [x] Get the tools from the toolkit: `sql_tools = toolkit.get_tools()`.
+        - [x] Add the `sql_tools` to the agent's available tools, potentially replacing existing custom database tools.
 
 ## Phase 4: Configuration and Agent Update (If Necessary)
 - [ ] **Review/Modify `src/sensory/react_agent/configuration.py`**:

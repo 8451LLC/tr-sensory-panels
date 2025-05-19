@@ -1,4 +1,6 @@
-"""This module provides example tools for web scraping and search functionality.
+"""
+This module provides example tools for web scraping and search
+functionality.
 
 It includes a basic Tavily search function (as an example)
 
@@ -9,20 +11,37 @@ consider implementing more robust and specialized tools tailored to your needs.
 from typing import Any, Callable, List, Optional, cast
 
 from langchain_tavily import TavilySearch  # type: ignore[import-not-found]
+from langchain_community.utilities import SQLDatabase
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
 
 from sensory.react_agent.configuration import Configuration
+from sensory.utils.databricks import get_sqlalchemy_engine
+from sensory.react_agent.utils import load_chat_model
 
 
 async def search(query: str) -> Optional[dict[str, Any]]:
     """Search for general web results.
 
-    This function performs a search using the Tavily search engine, which is designed
-    to provide comprehensive, accurate, and trusted results. It's particularly useful
-    for answering questions about current events.
+    This function performs a search using the Tavily search engine, which is
+    designed to provide comprehensive, accurate, and trusted results.
+    It's particularly useful for answering questions about current events.
     """
     configuration = Configuration.from_context()
     wrapped = TavilySearch(max_results=configuration.max_search_results)
     return cast(dict[str, Any], await wrapped.ainvoke({"query": query}))
 
 
-TOOLS: List[Callable[..., Any]] = [search]
+# Initialize the SQL Database Toolkit
+engine = get_sqlalchemy_engine()
+db = SQLDatabase(engine=engine)
+# TODO: The llm instance needs to be passed here.
+# This might require a refactor of how tools are initialized,
+# potentially moving this initialization into the graph.py or a factory
+# function. For now, we'll load a default model as a placeholder.
+# This will be addressed in a subsequent step.
+configuration = Configuration.from_context()
+llm = load_chat_model(configuration.model)
+toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+sql_tools = toolkit.get_tools()
+
+TOOLS: List[Callable[..., Any]] = [search] + sql_tools
