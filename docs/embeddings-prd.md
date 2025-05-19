@@ -77,13 +77,124 @@ This project will focus on the following:
 ## 6. Questions / Clarifications Needed
 
 *   What is the preferred method for storing the embeddings?
-    *   Add a new column to the existing `master_sensory_panel_joined_silver` and `master_sensory_responses_collected_silver` tables (e.g., `data_embedding VECTOR`)?
+    *   Add a new column to the existing `master_sensory_panel_joined_silver` and `master_sensory_responses_collected_silver` tables (e.g., `data_embedding ARRAY<FLOAT>`)? - **Decision: Add new column `data_embedding ARRAY<FLOAT>`**
     *   Create new tables (e.g., `master_sensory_panel_embeddings_gold`, `master_sensory_responses_embeddings_gold`) that store the primary key(s) of the original table and the corresponding embedding?
-*   How should updates be handled? If the source `data` changes, how will the corresponding embedding be updated? Is a full re-computation expected periodically, or an incremental update mechanism?
-*   Are there specific performance or cost constraints to consider for the embedding generation process?
-*   What is the expected volume of data in these tables? This will influence batch sizing and processing time estimates.
+*   How should updates be handled? If the source `data` changes, how will the corresponding embedding be updated? Is a full re-computation expected periodically, or an incremental update mechanism? - **Decision: The current script supports idempotent updates (skip if embedding exists) and an overwrite option. For ongoing sync, Databricks Vector Search Delta Sync Index is the intended solution.**
+*   Are there specific performance or cost constraints to consider for the embedding generation process? - **Decision: OpenAI API limits (50 parallel requests, 500 RPM, 500k TPM for shared key) were considered in script design.**
+*   What is the expected volume of data in these tables? This will influence batch sizing and processing time estimates. - **Answered: `master_sensory_responses_collected_silver` (~45,000 records), `master_sensory_panel_joined_silver` (~15,000 records).**
 
-## 7. Example Data Structures (for reference)
+## 7. Databricks Vector Search Setup
+
+Once the `data_embedding` column is populated in both `master_sensory_panel_joined_silver` and `master_sensory_responses_collected_silver` tables, the following steps are required to enable semantic search capabilities using Databricks Vector Search:
+
+### 7.1. Prerequisites
+
+*   **Unity Catalog Enabled Workspace:** Ensure the Databricks workspace has Unity Catalog enabled.
+*   **Serverless Compute Enabled:** Serverless compute is required for Vector Search endpoints.
+*   **Change Data Feed (CDF) Enabled on Source Tables:** The Delta tables (`master_sensory_panel_joined_silver`, `master_sensory_responses_collected_silver`) must have Change Data Feed enabled. This can be enabled using:
+    ```sql
+    ALTER TABLE master_sensory_panel_joined_silver SET TBLPROPERTIES (delta.enableChangeDataFeed = true);
+    ALTER TABLE master_sensory_responses_collected_silver SET TBLPROPERTIES (delta.enableChangeDataFeed = true);
+    ```
+*   **Permissions:** Appropriate permissions (e.g., `CREATE TABLE` on the schema for the index, permissions to manage Vector Search endpoints) are necessary.
+
+### 7.2. Create a Vector Search Endpoint
+
+A Vector Search Endpoint serves the vector search indexes. This can be created via the Databricks UI or the Python SDK.
+
+*   **Using the UI:**
+    1.  Navigate to **Compute** in the left sidebar.
+    2.  Click the **Vector Search** tab and then **Create endpoint**.
+    3.  Provide a name for the endpoint (e.g., `sensory_data_vector_search_endpoint`).
+    4.  Confirm creation.
+*   **Using the Python SDK (`databricks-vectorsearch`):**
+    ```python
+    from databricks.vector_search.client import VectorSearchClient
+    client = VectorSearchClient()
+    
+    client.create_endpoint(
+        name="sensory_data_vector_search_endpoint",
+        endpoint_type="STANDARD" # Or other types as appropriate
+    )
+    ```
+
+### 7.3. Create Delta Sync Indexes
+
+For each table, a Delta Sync Index will be created. This type of index automatically syncs with the source Delta Table, using the precomputed embeddings in the `data_embedding` column.
+
+*   **Key Configuration Parameters:**
+    *   `endpoint_name`: The name of the Vector Search Endpoint created in the previous step.
+    *   `source_table_name`: The full name of the source Delta table (e.g., `catalog_name.schema_name.master_sensory_panel_joined_silver`).
+    *   `index_name`: The full name for the Vector Search Index in Unity Catalog (e.g., `catalog_name.schema_name.panel_data_embedding_index`).
+    *   `primary_key`: The primary key column(s) of the source table.
+        *   For `master_sensory_panel_joined_silver`: `item_spec_number`
+        *   For `master_sensory_responses_collected_silver`: `test_id`, `unique_panelist_id` (Note: Vector Search typically expects a single primary key. If composite keys are not directly supported, consider creating a surrogate key in the table or investigate if the SDK/API handles composite keys gracefully, otherwise, a view or an intermediate table might be needed to create a single unique ID column for indexing purposes. For this document, we'll assume `item_spec_number` and a concatenation or hash for the composite key if needed, or that the SDK handles it.)
+    *   `embedding_vector_column`: The name of the column containing the precomputed embeddings (`data_embedding`).
+    *   `embedding_dimension`: The dimension of the embeddings (e.g., 1536 for `text-embedding-3-small`).
+    *   `pipeline_type`: Can be `TRIGGERED` or `CONTINUOUS`. `CONTINUOUS` is recommended for keeping the index in sync with low latency.
+
+*   **Example using Python SDK for `master_sensory_panel_joined_silver`:**
+    ```python
+    # Ensure databricks-vectorsearch is installed: %pip install databricks-vectorsearch
+    # dbutils.library.restartPython()
+    from databricks.vector_search.client import VectorSearchClient
+    client = VectorSearchClient()
+    
+    # For master_sensory_panel_joined_silver
+    client.create_delta_sync_index(
+      endpoint_name="sensory_data_vector_search_endpoint",
+      source_table_name="your_catalog.your_schema.master_sensory_panel_joined_silver",
+      index_name="your_catalog.your_schema.panel_joined_embedding_idx",
+      pipeline_type="CONTINUOUS", # or "TRIGGERED"
+      primary_key="item_spec_number",
+      embedding_dimension=1536, # Dimension of text-embedding-3-small
+      embedding_vector_column="data_embedding"
+    )
+    ```
+
+*   **Example using Python SDK for `master_sensory_responses_collected_silver`:**
+    *(Assuming a single primary key `compound_id` is created or the SDK can handle a list of PKs. If not, this part needs adjustment based on Databricks capabilities.)*
+    If a compound primary key column (e.g., `pk_responses`) is created by concatenating `test_id` and `unique_panelist_id`:
+    ```python
+    # For master_sensory_responses_collected_silver
+    # This assumes a single column 'pk_responses' exists as the primary key for the index.
+    # If the table has composite keys ['test_id', 'unique_panelist_id'], 
+    # check SDK documentation for how to specify composite keys. 
+    # If not directly supported, a new column might be needed in the source table 
+    # or a view created for indexing purposes.
+    # For now, let's assume 'pk_responses' is the designated single PK column for the index.
+    client.create_delta_sync_index(
+      endpoint_name="sensory_data_vector_search_endpoint",
+      source_table_name="your_catalog.your_schema.master_sensory_responses_collected_silver",
+      index_name="your_catalog.your_schema.responses_collected_embedding_idx",
+      pipeline_type="CONTINUOUS", # or "TRIGGERED"
+      primary_key="pk_responses", # Placeholder for actual primary key column name used for index
+      embedding_dimension=1536, # Dimension of text-embedding-3-small
+      embedding_vector_column="data_embedding"
+    )
+    ```
+    **Note on Composite Primary Keys for `master_sensory_responses_collected_silver`:** The `databricks-vectorsearch` SDK's `create_delta_sync_index` expects a single string for `primary_key`. If your table truly uses a composite key (`test_id`, `unique_panelist_id`) for uniqueness, you will need to: 
+    1. Create a new column in `master_sensory_responses_collected_silver` that serves as a single unique identifier (e.g., by concatenating `test_id` and `unique_panelist_id`). This new column would then be used as the `primary_key` for the Vector Search index.
+    2. Alternatively, if the table structure cannot be modified, investigate if Databricks Vector Search offers other mechanisms or if a view can be indexed (though direct table indexing is more common for Delta Sync).
+
+### 7.4. Querying the Index
+
+Once the indexes are created and synced, they can be queried using the Vector Search endpoint via the SDK or REST API to find semantically similar records based on the `data_embedding`.
+
+```python
+# Example query (conceptual)
+index = client.get_index(endpoint_name="sensory_data_vector_search_endpoint", index_name="your_catalog.your_schema.panel_joined_embedding_idx")
+results = index.similarity_search(
+    query_vector=[0.1, 0.2, ..., 0.N], # Embedding of the query text
+    columns=["item_spec_number", "data"], # Columns to return
+    num_results=5
+)
+print(results)
+```
+
+This section outlines the general process. Specific details and configurations should be verified against the latest Databricks Vector Search documentation.
+
+## 8. Example Data Structures (for reference)
 
 ### `master_sensory_panel_joined_silver` - `data` column example:
 ```json
