@@ -42,8 +42,7 @@ def get_sqlalchemy_engine():
         raise ValueError("DATABRICKS_TOKEN environment variable not set.")
 
     connection_uri = (
-        f"databricks://token:{access_token}@{server_hostname}?"
-        f"http_path={http_path}"
+        f"databricks://token:{access_token}@{server_hostname}?" f"http_path={http_path}"
     )
     return create_engine(connection_uri)
 

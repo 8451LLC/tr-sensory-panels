@@ -65,9 +65,7 @@ def test_get_sqlalchemy_engine_connects():
             f"(OperationalError): {oe}"
         )
     except Exception as e:
-        pytest.fail(
-            f"Failed to connect with SQLAlchemy engine or execute query: {e}"
-        )
+        pytest.fail(f"Failed to connect with SQLAlchemy engine or execute query: {e}")
 
 
 def test_execute_sql_query_success():
@@ -89,9 +87,7 @@ def test_execute_sql_query_success():
     assert access_token, "DATABRICKS_TOKEN environment variable not set."
 
     try:
-        result = execute_sql_query(
-            server_hostname, http_path, access_token, query
-        )
+        result = execute_sql_query(server_hostname, http_path, access_token, query)
         assert isinstance(result, list), "Query result should be a list."
         # We can't be sure if the table has data, but if it does, it should
         # have columns.
@@ -99,13 +95,8 @@ def test_execute_sql_query_success():
         # be an empty list.
         # If the table has data, result will be a list of tuples.
         if result:
-            assert isinstance(
-                result[0], tuple
-            ), "Query result rows should be tuples."
-        print(
-            f"Successfully executed SQL query. "
-            f"Result has {len(result)} row(s)."
-        )
+            assert isinstance(result[0], tuple), "Query result rows should be tuples."
+        print(f"Successfully executed SQL query. " f"Result has {len(result)} row(s).")
     except Exception as e:
         pytest.fail(f"execute_sql_query failed: {e}")
 
@@ -137,9 +128,7 @@ def test_sql_warehouse_query_success():
         result = warehouse.query(query)
         assert isinstance(result, list), "Query result should be a list."
         if result:
-            assert isinstance(
-                result[0], tuple
-            ), "Query result rows should be tuples."
+            assert isinstance(result[0], tuple), "Query result rows should be tuples."
         print(
             f"Successfully executed SQLWarehouse.query. "
             f"Result has {len(result)} row(s)."
