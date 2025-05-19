@@ -1,64 +1,11 @@
 -- Databricks notebook source
 -- MAGIC %md
--- MAGIC ## Inspect data
+-- MAGIC ## Build summary table
 
 -- COMMAND ----------
 
 USE CATALOG manufacturing_dev;
 USE SCHEMA work_agent_barney;
-
--- COMMAND ----------
-
-SELECT
-  *
-FROM
-  master_sensory_ingredient_statement_bronze;
-
--- COMMAND ----------
-
-SELECT
-  *
-FROM
-  master_sensory_panel_benchmark_bronze;
-
--- COMMAND ----------
-
-SELECT
-  *
-FROM
-  master_sensory_panel_dept_info_bronze
-WHERE
-  attributes_factors_to_be_tested IS NOT NULL;
-
--- COMMAND ----------
-
-SELECT
-  *
-FROM
-  master_sensory_panel_info_1_bronze
-WHERE
-  row_name IS NOT NULL;
-
--- COMMAND ----------
-
-SELECT
-  *
-FROM
-  master_sensory_panel_info_2_bronze
-WHERE
-  row_name IS NOT NULL;
-
--- COMMAND ----------
-
-SELECT
-  *
-FROM
-  master_sensory_panel_summary_bronze;
-
--- COMMAND ----------
-
--- MAGIC %md
--- MAGIC ## Join tables
 
 -- COMMAND ----------
 
@@ -140,7 +87,7 @@ SELECT * FROM benchmark_pivot;
 CREATE OR REPLACE TEMP VIEW requested_info_2_pivot AS
 SELECT
   spec_number AS requested_info_2_spec_number,
-  MAX(TO_DATE(value, 'yyyy/MM/dd HH:mm:ss')) FILTER(WHERE row_name = 'Date_of_Formal_Cutting') AS data_of_formal_cutting
+  MAX(TO_DATE(value, 'yyyy/MM/dd HH:mm:ss')) FILTER(WHERE row_name = 'Date_of_Formal_Cutting') AS date_of_formal_cutting
 FROM
   master_sensory_requested_info_2_bronze
 GROUP BY
@@ -150,32 +97,49 @@ SELECT * FROM requested_info_2_pivot;
 
 -- COMMAND ----------
 
-CREATE OR REPLACE TEMP VIEW ingredient_statement AS
+SELECT * FROM master_sensory_ingredient_statement_bronze;
+
+-- COMMAND ----------
+
+CREATE OR REPLACE TEMP VIEW ingredient_statement_pivot AS
 SELECT
   spec_number AS ingredient_statement_spec_number,
-  COLLECT_LIST(STRUCT(*)) AS ingredient_statement
+  FIRST(value) FILTER(WHERE row_name = 'Concept_Statement') AS ingredient_statement_concept_statement,
+  FIRST(value) FILTER(WHERE row_name = 'Curr_Benchmark_Ing_Stat_1') AS ingredient_statement_curr_benchmark_ing_stat_1,
+  FIRST(value) FILTER(WHERE row_name = 'Additional_Ingredients') AS ingredient_statement_additional_ingredients,
+  FIRST(value) FILTER(WHERE row_name = 'Gen_Product_Descrip') AS ingredient_statement_gen_product_descrip,
+  FIRST(value) FILTER(WHERE row_name = 'Propose_Ingred_Stat2') AS ingredient_statement_propose_ingred_stat_2,
+  FIRST(value) FILTER(WHERE row_name = 'Curr_Benchmark_Ing_Stat_2') AS ingredient_statement_curr_benchmark_ing_stat_2,
+  FIRST(value) FILTER(WHERE row_name = 'Known_Allergens') AS ingredient_statement_known_allergens,
+  FIRST(value) FILTER(WHERE row_name = 'Propose_Ingred_Stat1') AS ingredient_statement_propose_ingred_stat_1,
+  FIRST(value) FILTER(WHERE row_name = 'Curr_Benchmark_Ing_Stat_3') AS ingredient_statement_curr_benchmark_ing_stat_3,
+  FIRST(value) FILTER(WHERE row_name = 'Propose_Ingred_Stat3') AS ingredient_statement_propose_ingred_stat_3
 FROM
   master_sensory_ingredient_statement_bronze
 GROUP BY
   spec_number;
 
-SELECT * FROM ingredient_statement;
+SELECT * FROM ingredient_statement_pivot;
 
 -- COMMAND ----------
 
-CREATE OR REPLACE TEMPORARY VIEW sensory AS
+DESCRIBE ingredient_statement_pivot;
+
+-- COMMAND ----------
+
+CREATE OR REPLACE TEMPORARY VIEW sensory_panel_joined_bronze AS
 SELECT
   -- test_item
   item_spec_number,
-  item_type,
   item_product_id,
+  item_type,
   item_brand,
   item_plant_supplier,
   item_formula_number_code,
   item_upc_number,
 
   -- summary
-  summary_summary_results,
+  summary_summary_results AS summary_results,
   summary_other_findings,
   summary_special_notes,
   summary_met_expectation,
@@ -196,10 +160,19 @@ SELECT
   benchmark_upc_number,
 
   -- requested_info_2
-  data_of_formal_cutting,
+  date_of_formal_cutting,
 
   -- ingredient statement
-  ingredient_statement
+  ingredient_statement_concept_statement,
+  ingredient_statement_curr_benchmark_ing_stat_1,
+  ingredient_statement_additional_ingredients,
+  ingredient_statement_gen_product_descrip,
+  ingredient_statement_propose_ingred_stat_2,
+  ingredient_statement_curr_benchmark_ing_stat_2,
+  ingredient_statement_known_allergens,
+  ingredient_statement_propose_ingred_stat_1,
+  ingredient_statement_curr_benchmark_ing_stat_3,
+  ingredient_statement_propose_ingred_stat_3
 FROM
   test_item_pivot
 LEFT JOIN
@@ -219,17 +192,67 @@ LEFT JOIN
 ON
   requested_info_2_spec_number = item_spec_number
 LEFT JOIN
-  ingredient_statement
+  ingredient_statement_pivot
 ON
   ingredient_statement_spec_number = item_spec_number;
 
-SELECT * FROM sensory;
+SELECT * FROM sensory_panel_joined_bronze;
 
 -- COMMAND ----------
 
-SELECT COUNT(*) FROM sensory;
+CREATE OR REPLACE TABLE master_sensory_panel_joined_bronze AS
+SELECT * FROM sensory_panel_joined_bronze;
 
 -- COMMAND ----------
 
-CREATE OR REPLACE TABLE master_sensory_joined_wip AS
-SELECT * FROM sensory;
+-- MAGIC %md
+-- MAGIC ## Collect columns
+
+-- COMMAND ----------
+
+CREATE OR REPLACE TEMP VIEW sensory_panel_joined_silver AS
+SELECT
+  item_spec_number,
+  item_product_id,
+  STRUCT(*) AS data
+FROM
+  master_sensory_panel_joined_bronze;
+
+SELECT * FROM sensory_panel_joined_silver;
+
+
+-- COMMAND ----------
+
+CREATE OR REPLACE TABLE master_sensory_panel_joined_silver AS
+SELECT * FROM sensory_panel_joined_silver;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## Add primary key
+
+-- COMMAND ----------
+
+SELECT
+  item_spec_number,
+  COUNT(*) AS count
+FROM
+  master_sensory_panel_joined_silver
+GROUP BY
+  item_spec_number
+HAVING
+  COUNT(*) > 1;
+
+-- COMMAND ----------
+
+ALTER TABLE
+  master_sensory_panel_joined_silver
+ALTER COLUMN
+  item_spec_number SET NOT NULL;
+
+ALTER TABLE
+  master_sensory_panel_joined_silver
+ADD CONSTRAINT
+  pk_item_spec_number
+PRIMARY KEY
+  (item_spec_number);
