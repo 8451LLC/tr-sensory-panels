@@ -2,6 +2,7 @@ import pytest
 from dotenv import load_dotenv
 import os
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import text  # Import text
 
 from sensory.utils.databricks import (
     get_workspace_client,
@@ -53,7 +54,8 @@ def test_get_sqlalchemy_engine_connects():
 
         # Try to establish a connection and execute a simple query
         with engine.connect() as connection:
-            result = connection.execute("SELECT 1")  # type: ignore
+            # Wrap query with text()
+            result = connection.execute(text("SELECT 1"))
             assert result.scalar_one() == 1, "Query SELECT 1 should return 1."
         print(
             "Successfully connected to Databricks SQL warehouse using "
@@ -96,7 +98,7 @@ def test_execute_sql_query_success():
         # If the table has data, result will be a list of tuples.
         if result:
             assert isinstance(result[0], tuple), "Query result rows should be tuples."
-        print(f"Successfully executed SQL query. " f"Result has {len(result)} row(s).")
+        print(f"Successfully executed SQL query. Result has {len(result)} row(s).")
     except Exception as e:
         pytest.fail(f"execute_sql_query failed: {e}")
 
