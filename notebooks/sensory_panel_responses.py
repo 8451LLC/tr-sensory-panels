@@ -176,7 +176,8 @@ def write_responses_long_bronze(responses_bronze: DataFrame) -> None:
     This could be considered silver, but arguably still pretty raw.
     """
     (
-        responses_bronze.transform(unpivot_questions)
+        responses_bronze
+        .transform(unpivot_questions)
         .transform(pivot_timestamp_cols)
         .write.mode("overwrite")
         .saveAsTable(f"{CATALOG}.{SCHEMA}.master_sensory_responses_long_bronze")
@@ -199,7 +200,6 @@ display(responses_long_bronze)
 # MAGIC ## Collect responses
 
 # COMMAND ----------
-
 
 def collect_responses(responses_long_bronze: DataFrame) -> DataFrame:
     """
@@ -255,24 +255,41 @@ def collect_responses(responses_long_bronze: DataFrame) -> DataFrame:
         # sort questions array by timestamp value in struct
         .withColumn("questions", f.array_sort("questions", sort_questions_by_timestamp))
         # gather entire row into one struct
-        .select(f.struct("*").alias("data"))
-        # sort
-        .orderBy(
-            f.desc("test_completed_date"),
+        .select(
+            "test_name",
             "test_id",
+            "test_completed_date",
             "unique_panelist_id",
+            f.struct("*").alias("data")
         )
     )
 
 
-def write_response_collected_silver(response_long_bronze: DataFrame) -> DataFrame:
+def write_responses_collected_silver(response_long_bronze: DataFrame) -> None:
     """
     Write responses collected into silver table. The resulting 'data' column will
     be suitable for LLM summary and/or embedding.
     """
+    (
+        response_long_bronze
+        .transform(collect_responses)
+        .write.mode("overwrite")
+        .saveAsTable(f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver")
+    )
 
+
+write_responses_collected_silver(responses_long_bronze)
 
 # COMMAND ----------
 
-responses_collected_silver = collect_responses(responses_long_bronze)
-display(responses_collected)
+responses_collected_silver = spark.read.table(
+    f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver"
+)
+display(
+    responses_collected_silver
+    .orderBy(
+        f.desc("test_completed_date"),
+        "test_id",
+        "unique_panelist_id",
+    )
+)
