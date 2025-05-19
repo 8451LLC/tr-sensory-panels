@@ -10,11 +10,13 @@ consider implementing more robust and specialized tools tailored to your needs.
 
 from typing import Any, Callable, List, Optional, cast
 
-from langchain_tavily import TavilySearch  # type: ignore[import-not-found]
+from langchain_tavily import TavilySearch
+
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
 
 from sensory.react_agent.configuration import Configuration
+
 from sensory.utils.databricks import get_sqlalchemy_engine
 from sensory.react_agent.utils import load_chat_model
 
@@ -33,7 +35,7 @@ async def search(query: str) -> Optional[dict[str, Any]]:
 
 # Initialize the SQL Database Toolkit
 engine = get_sqlalchemy_engine()
-db = SQLDatabase(engine=engine)
+db = SQLDatabase(engine=engine, lazy_table_reflection=True)
 # TODO: The llm instance needs to be passed here.
 # This might require a refactor of how tools are initialized,
 # potentially moving this initialization into the graph.py or a factory
