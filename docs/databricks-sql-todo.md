@@ -31,10 +31,10 @@ This list is derived from the `databricks-sql-prd.md` document.
         - [x] Add the `sql_tools` to the agent's available tools, potentially replacing existing custom database tools.
 
 ## Phase 4: Configuration and Agent Update (If Necessary)
-- [ ] **Review/Modify `src/sensory/react_agent/configuration.py`**:
-    - [ ] Check if any new configuration settings are needed for the SQL tools (e.g., table inclusions, sample rows).
-- [ ] **Review/Modify Agent Assembly (`src/sensory/react_agent/graph.py` or similar)**:
-    - [ ] Ensure the agent is correctly initialized or updated to use the new `SQLDatabaseToolkit` tools.
+- [x] **Review/Modify `src/sensory/react_agent/configuration.py`**:
+    - [x] Check if any new configuration settings are needed for the SQL tools (e.g., table inclusions, sample rows).
+- [x] **Review/Modify Agent Assembly (`src/sensory/react_agent/graph.py` or similar)**:
+    - [x] Ensure the agent is correctly initialized or updated to use the new `SQLDatabaseToolkit` tools.
 
 ## Phase 5: Testing
 - [ ] **Add Unit Tests**:

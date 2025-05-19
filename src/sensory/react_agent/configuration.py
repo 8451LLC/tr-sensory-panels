@@ -39,6 +39,19 @@ class Configuration:
         },
     )
 
+    include_tables: list[str] = field(
+        default_factory=lambda: [
+            "master_sensory_panel_joined_silver",
+            "master_sensory_responses_collected_silver",
+        ],
+        metadata={
+            "description": (
+                "A list of table names to include for the SQLDatabaseToolkit. "
+                "Only these tables will be accessible to the agent."
+            )
+        },
+    )
+
     @classmethod
     def from_context(cls) -> Configuration:
         """Create a Configuration instance from a RunnableConfig object."""

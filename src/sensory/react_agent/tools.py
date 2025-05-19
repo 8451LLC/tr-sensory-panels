@@ -35,13 +35,18 @@ async def search(query: str) -> Optional[dict[str, Any]]:
 
 # Initialize the SQL Database Toolkit
 engine = get_sqlalchemy_engine()
-db = SQLDatabase(engine=engine, lazy_table_reflection=True)
+# Moved up to access include_tables for SQLDatabase initialization
+configuration = Configuration.from_context()
+db = SQLDatabase(
+    engine=engine,
+    lazy_table_reflection=True,
+    include_tables=configuration.include_tables,  # Use configured tables
+)
 # TODO: The llm instance needs to be passed here.
 # This might require a refactor of how tools are initialized,
 # potentially moving this initialization into the graph.py or a factory
 # function. For now, we'll load a default model as a placeholder.
 # This will be addressed in a subsequent step.
-configuration = Configuration.from_context()
 llm = load_chat_model(configuration.model)
 toolkit = SQLDatabaseToolkit(db=db, llm=llm)
 sql_tools = toolkit.get_tools()
