@@ -1,15 +1,14 @@
-\
 # Todo List: Databricks SQL Integration
 
 This list is derived from the `databricks-sql-prd.md` document.
 
 ## Phase 1: Setup and Dependencies
-- [ ] **Update `pyproject.toml`**:
-    - [ ] Add `langchain-community` to dependencies.
-    - [ ] Add `SQLAlchemy` to dependencies.
-    - [ ] Add `sqlalchemy-databricks` (Databricks dialect) to dependencies.
-- [ ] **Install Dependencies**:
-    - [ ] Run `uv pip install .` (or equivalent for the project setup) to install/update dependencies.
+- [x] **Update `pyproject.toml`**:
+    - [x] Add `langchain-community` to dependencies.
+    - [x] Add `SQLAlchemy` to dependencies.
+    - [x] Add `sqlalchemy-databricks` (Databricks dialect) to dependencies.
+- [x] **Install Dependencies**:
+    - [x] Run `uv pip install .` (or equivalent for the project setup) to install/update dependencies.
 
 ## Phase 2: SQLAlchemy Engine Creation
 - [ ] **Modify `src/sensory/utils/databricks.py`**:
