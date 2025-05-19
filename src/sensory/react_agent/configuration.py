@@ -18,8 +18,10 @@ class Configuration:
     system_prompt: str = field(
         default=prompts.SYSTEM_PROMPT,
         metadata={
-            "description": "The system prompt to use for the agent's interactions. "
-            "This prompt sets the context and behavior for the agent."
+            "description": (
+                "The system prompt to use for the agent's interactions. "
+                "This prompt sets the context and behavior for the agent."
+            )
         },
     )
 
@@ -27,15 +29,20 @@ class Configuration:
         # default="anthropic/claude-3-5-sonnet-20240620",
         default="openai/gpt-4o",
         metadata={
-            "description": "The name of the language model to use for the agent's main interactions. "
-            "Should be in the form: provider/model-name."
+            "description": (
+                "The name of the language model to use for the agent's main "
+                "interactions. Should be in the form: provider/model-name."
+            )
         },
     )
 
     max_search_results: int = field(
         default=10,
         metadata={
-            "description": "The maximum number of search results to return for each search query."
+            "description": (
+                "The maximum number of search results to return for each "
+                "search query."
+            )
         },
     )
 
