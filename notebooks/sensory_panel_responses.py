@@ -149,7 +149,8 @@ def pivot_timestamp_cols(responses_long: DataFrame) -> DataFrame:
 
     # Join the timestamp cols with the non-timestamp cols.
     return (
-        responses.alias("r").join(
+        responses.alias("r")
+        .join(
             timestamps.alias("t"),
             [
                 f.col("r.test_id") == f.col("t.test_id"),
@@ -244,7 +245,8 @@ def collect_responses(responses_long_bronze: DataFrame) -> DataFrame:
                 "response",
                 f.to_timestamp("timestamp", "M/d/yyyy h:mm:ss a").alias("timestamp"),
             ).alias("question"),
-        ).groupBy(
+        )
+        .groupBy(
             "test_name",
             "test_id",
             "test_completed_date",

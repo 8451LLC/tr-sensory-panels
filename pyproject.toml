@@ -1,7 +1,7 @@
 [project]
 name = "sensory"
 version = "0.1.0"
-description = "Add your description here"
+description = "Agents for Kroger Sensory Panel Data."
 readme = "README.md"
 authors = [
     { name = "Tim Reddick", email = "tim.reddick@8451.com" }
