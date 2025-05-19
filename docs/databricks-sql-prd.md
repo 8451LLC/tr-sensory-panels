@@ -1,4 +1,4 @@
-# Plan: Integrating Langchain SQLDatabase Toolkit with Databricks
+# Databricks SQL PRD
 
 **Overall Goal:** Enable a Langchain agent to interact with a Databricks SQL warehouse using the `SQLDatabaseToolkit`, which requires a SQLAlchemy engine.
 
