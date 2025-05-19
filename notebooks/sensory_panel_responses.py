@@ -213,7 +213,10 @@ def collect_responses(responses_long_bronze: DataFrame) -> DataFrame:
         ) - f.when(y["timestamp"].isNotNull(), y["timestamp"].cast("int")).otherwise(0)
 
     return (
-        responses_long_bronze.select(
+        responses_long_bronze
+        # filter for test_id not null and unique_panelist_id not null
+        .filter(f.col("test_id").isNotNull() & f.col("unique_panelist_id").isNotNull())
+        .select(
             "test_name",
             "test_id",
             f.to_date(f.col("test_completed_date"), "M/d/yyyy").alias(
