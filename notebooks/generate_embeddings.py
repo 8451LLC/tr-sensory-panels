@@ -134,43 +134,31 @@ def process_and_update_embeddings(target_table: str, max_records: int = None) ->
 # COMMAND ----------
 
 process_and_update_embeddings(
-    f"{CATALOG}.{SCHEMA}.master_sensory_panel_joined_silver", 120
-)
-
-# COMMAND ----------
-
-test = spark.read.table(
     f"{CATALOG}.{SCHEMA}.master_sensory_panel_joined_silver"
-).filter(f.col("data_embedding").isNotNull())
-
-display(test)
-
-# COMMAND ----------
-
-# from databricks.vector_search.client import VectorSearchClient
-
-
-# client = VectorSearchClient()
-# index = client.create_endpoint_and_wait(
-#     name="master_sensory_data_endpoint",
-#     endpoint_type="STANDARD"
-# )
-
-# COMMAND ----------
-
-display(test)
-
-# COMMAND ----------
-
-client = VectorSearchClient()
-
-index = client.create_delta_sync_index_and_wait(
-    endpoint_name="master_sensory_data_endpoint",
-    index_name=f"{CATALOG}.{SCHEMA}.master_sensory_test_index",
-    primary_key="test_id",
-    source_table_name=f"{CATALOG}.{SCHEMA}.master_sensory_test_embeddings",
-    pipeline_type="TRIGGERED",
-    embedding_dimension=1536,
-    embedding_vector_column="data_embedding",
-    verbose=True,
 )
+
+# COMMAND ----------
+
+panel_joined = (
+    spark.read.table(f"{CATALOG}.{SCHEMA}.master_sensory_panel_joined_silver")
+    .groupBy(f.col("data_embedding").isNull())
+    .count()
+)
+
+display(panel_joined)
+
+# COMMAND ----------
+
+process_and_update_embeddings(
+    f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver"
+)
+
+# COMMAND ----------
+
+responses_collected = (
+    spark.read.table(f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver")
+    .groupBy(f.col("data_embedding").isNull())
+    .count()
+)
+
+display(responses_collected)
