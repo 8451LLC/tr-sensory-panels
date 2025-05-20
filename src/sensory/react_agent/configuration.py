@@ -68,8 +68,17 @@ class Configuration:
             )
         },
     )
-    vectorsearch_index: str = field(
+    vectorsearch_summary_index: str = field(
         default="manufacturing_dev.work_agent_barney.master_sensory_panel_joined_index",
+        metadata={
+            "description": (
+                "The Databricks Vector Search index name to use for vector search queries."
+            )
+        },
+    )
+
+    vectorsearch_responses_index: str = field(
+        default="manufacturing_dev.work_agent_barney.master_sensory_responses_collected_index",
         metadata={
             "description": (
                 "The Databricks Vector Search index name to use for vector search queries."
