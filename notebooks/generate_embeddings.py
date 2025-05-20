@@ -26,7 +26,7 @@ OPENAI_API_BASE = "https://api-internal.8451.com/ai/proxy/"
 BATCH_SIZE = 60
 CALLS = 10
 PERIOD = 60
-
+MAX_CHARS = 30_000
 
 def _set_env(var: str):
     if not os.environ.get(var):
@@ -46,14 +46,19 @@ openai_client = openai.OpenAI(
 
 # COMMAND ----------
 
-
-def fetch_records(table_name: str, limit: int) -> DataFrame:
-    return (
+def fetch_records(table_name: str, limit: int = None) -> DataFrame:
+    df = (
         spark.read.table(table_name)
         .select("id", "data")
         .filter(f.col("data_embedding").isNull())
-        .limit(limit)
+
+        # ~2 records exceeding context window of embedding model
+        .withColumn("data", f.expr(f"substring(data, 1, {MAX_CHARS})"))
     )
+    if limit is not None:
+        df = df.limit(limit)
+
+    return df
 
 
 @sleep_and_retry
