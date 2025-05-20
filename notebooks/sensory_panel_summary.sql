@@ -214,7 +214,8 @@ CREATE OR REPLACE TEMP VIEW sensory_panel_joined_silver AS
 SELECT
   item_spec_number,
   item_product_id,
-  STRUCT(*) AS data
+  TO_JSON(STRUCT(*)) AS data,
+  NULL AS data_embedding
 FROM
   master_sensory_panel_joined_bronze;
 
@@ -223,36 +224,23 @@ SELECT * FROM sensory_panel_joined_silver;
 
 -- COMMAND ----------
 
-CREATE OR REPLACE TABLE master_sensory_panel_joined_silver AS
-SELECT * FROM sensory_panel_joined_silver;
+CREATE TABLE IF NOT EXISTS master_sensory_panel_joined_silver (
+  id BIGINT GENERATED ALWAYS AS IDENTITY,
+  item_spec_number STRING,
+  item_product_id STRING,
+  data STRING,
+  data_embedding ARRAY<FLOAT>,
+  PRIMARY KEY (id)
+) TBLPROPERTIES (delta.enableChangeDataFeed = true)
 
 -- COMMAND ----------
 
--- MAGIC %md
--- MAGIC ## Add primary key
-
--- COMMAND ----------
-
+INSERT OVERWRITE master_sensory_panel_joined_silver
+BY NAME
 SELECT
   item_spec_number,
-  COUNT(*) AS count
+  item_product_id,
+  data,
+  data_embedding
 FROM
-  master_sensory_panel_joined_silver
-GROUP BY
-  item_spec_number
-HAVING
-  COUNT(*) > 1;
-
--- COMMAND ----------
-
-ALTER TABLE
-  master_sensory_panel_joined_silver
-ALTER COLUMN
-  item_spec_number SET NOT NULL;
-
-ALTER TABLE
-  master_sensory_panel_joined_silver
-ADD CONSTRAINT
-  pk_item_spec_number
-PRIMARY KEY
-  (item_spec_number);
+  sensory_panel_joined_silver;

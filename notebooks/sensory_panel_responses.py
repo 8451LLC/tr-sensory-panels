@@ -286,16 +286,24 @@ def write_responses_collected_silver(responses_long_bronze: DataFrame) -> None:
             data STRING,
             data_embedding ARRAY<FLOAT>,
             PRIMARY KEY (id)
-        )
+        ) TBLPROPERTIES (delta.enableChangeDataFeed = true)
     """)
 
+    # Transform the responses
+    responses_collected = responses_long_bronze.transform(collect_responses)
+
+    # Create temp view
+    responses_collected.createOrReplaceTempView("responses_collected")
+
     # Insert data into the table
-    (
-        responses_long_bronze
-        .transform(collect_responses)
-        .write.mode("overwrite")
-        .saveAsTable(f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver")
-    )
+    spark.sql(f"""
+        INSERT OVERWRITE {CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver
+        BY NAME
+        SELECT
+            *
+        FROM
+            responses_collected
+    """)
 
 
 write_responses_collected_silver(responses_long_bronze)
