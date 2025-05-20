@@ -21,7 +21,7 @@ Integrate DatabricksVectorSearch as a tool for the agent, enabling semantic sear
     - Index name (e.g., `manufacturing_dev.work_agent_barney.master_sensory_panel_joined_index`)
   - Only support one endpoint/index for now.
 
-- [ ] **Implement the Tool**
+- [x] **Implement the Tool**
   - Create an async function (e.g., `vector_search_tool`) that:
     - Accepts: `query: str`, `k: int = 5`, `filter: Optional[dict] = None`
     - Initializes `DatabricksVectorSearch` with:
@@ -32,7 +32,7 @@ Integrate DatabricksVectorSearch as a tool for the agent, enabling semantic sear
     - Calls `.similarity_search()` with support for filter.
     - Returns only the full document (which includes all metadata fields).
 
-- [ ] **Add Tool to Agent**
+- [x] **Add Tool to Agent**
   - Import and append the new tool to the `TOOLS` list in `src/sensory/react_agent/tools.py`.
 
 - [ ] **Testing**
