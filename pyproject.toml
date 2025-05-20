@@ -6,9 +6,9 @@ readme = "README.md"
 authors = [
     { name = "Tim Reddick", email = "tim.reddick@8451.com" }
 ]
-requires-python = ">=3.13.2"
+requires-python = ">=3.11, <3.12" # MLFlow compatibility
 dependencies = [
-    "databricks-langchain>=0.2.0",
+    "databricks-langchain>=0.5.1",
     "databricks-sdk>=0.53.0",
     "databricks-sql-connector[pyarrow]>=4.0.3",
     "databricks-sqlalchemy>=2.0.6",
