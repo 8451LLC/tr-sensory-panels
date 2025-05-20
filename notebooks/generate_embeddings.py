@@ -8,6 +8,7 @@ dbutils.library.restartPython()
 # COMMAND ----------
 
 import os, getpass
+import logging
 
 from delta.tables import DeltaTable
 import openai
@@ -45,6 +46,7 @@ openai_client = openai.OpenAI(
 
 # COMMAND ----------
 
+
 def fetch_records(table_name: str, limit: int) -> DataFrame:
     return (
         spark.read.table(table_name)
@@ -78,24 +80,33 @@ def merge_embeddings(target_table: str, embeddings_df: DataFrame) -> None:
 
 
 def process_and_update_embeddings(target_table: str, max_records: int = None) -> None:
+    logging.basicConfig(level=logging.INFO)
     total_processed = 0
     while True:
         # Fetch a batch of records needing embeddings
         records_df = fetch_records(target_table, BATCH_SIZE)
         collected = records_df.collect()
         if not collected:
+            logging.info(
+                f"No more records to process. Total processed: {total_processed}"
+            )
             break  # No more records to process
 
         # If max_records is set, trim the batch if needed
         if max_records is not None:
             remaining = max_records - total_processed
             if remaining <= 0:
+                logging.info(f"Reached max_records limit: {max_records}")
                 break
             if len(collected) > remaining:
                 collected = collected[:remaining]
 
         ids = [row.id for row in collected]
         data = [row.data for row in collected]
+
+        logging.info(
+            f"Processing batch: {len(collected)} records (total processed so far: {total_processed})"
+        )
 
         # Rate-limited embedding generation
         embeddings = generate_embeddings_rate_limited(data)
@@ -114,13 +125,17 @@ def process_and_update_embeddings(target_table: str, max_records: int = None) ->
         merge_embeddings(target_table, embeddings_df)
 
         total_processed += len(collected)
+        logging.info(f"Merged batch. Total processed: {total_processed}")
         if max_records is not None and total_processed >= max_records:
+            logging.info(f"Reached max_records limit: {max_records}")
             break
 
 
 # COMMAND ----------
 
-process_and_update_embeddings(f"{CATALOG}.{SCHEMA}.master_sensory_panel_joined_silver", 120)
+process_and_update_embeddings(
+    f"{CATALOG}.{SCHEMA}.master_sensory_panel_joined_silver", 120
+)
 
 # COMMAND ----------
 
