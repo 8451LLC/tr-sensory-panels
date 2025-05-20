@@ -265,18 +265,33 @@ def collect_responses(responses_long_bronze: DataFrame) -> DataFrame:
             "test_id",
             "test_completed_date",
             "unique_panelist_id",
-            f.struct("*").alias("data")
+            f.to_json(f.struct("*")).alias("data"),
         )
     )
 
 
-def write_responses_collected_silver(response_long_bronze: DataFrame) -> None:
+def write_responses_collected_silver(responses_long_bronze: DataFrame) -> None:
     """
     Write responses collected into silver table. The resulting 'data' column will
     be suitable for LLM summary and/or embedding.
     """
+    # Create the table
+    spark.sql(f"""
+        CREATE TABLE IF NOT EXISTS {CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver (
+            id BIGINT GENERATED ALWAYS AS IDENTITY,
+            test_name STRING,
+            test_id STRING NOT NULL,
+            test_completed_date DATE,
+            unique_panelist_id STRING NOT NULL,
+            data STRING,
+            data_embedding ARRAY<FLOAT>,
+            PRIMARY KEY (id)
+        )
+    """)
+
+    # Insert data into the table
     (
-        response_long_bronze
+        responses_long_bronze
         .transform(collect_responses)
         .write.mode("overwrite")
         .saveAsTable(f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver")
