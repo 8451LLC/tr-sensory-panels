@@ -59,6 +59,24 @@ class Configuration:
         },
     )
 
+    # Databricks Vector Search configuration
+    vectorsearch_endpoint: str = field(
+        default="master_sensory_data_endpoint",
+        metadata={
+            "description": (
+                "The Databricks Vector Search endpoint name to use for vector search queries."
+            )
+        },
+    )
+    vectorsearch_index: str = field(
+        default="manufacturing_dev.work_agent_barney.master_sensory_panel_joined_index",
+        metadata={
+            "description": (
+                "The Databricks Vector Search index name to use for vector search queries."
+            )
+        },
+    )
+
     @classmethod
     def from_context(cls) -> Configuration:
         """Create a Configuration instance from a RunnableConfig object."""

@@ -8,9 +8,11 @@ authors = [
 ]
 requires-python = ">=3.13.2"
 dependencies = [
+    "databricks-langchain>=0.2.0",
     "databricks-sdk>=0.53.0",
     "databricks-sql-connector[pyarrow]>=4.0.3",
     "databricks-sqlalchemy>=2.0.6",
+    "databricks-vectorsearch>=0.56",
     "ipykernel>=6.29.5",
     "langchain>=0.3.25",
     "langchain-community>=0.3.24",

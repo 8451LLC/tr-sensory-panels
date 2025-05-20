@@ -12,10 +12,10 @@ Integrate DatabricksVectorSearch as a tool for the agent, enabling semantic sear
 
 ## Plan / TODO List
 
-- [ ] **Install Required Packages**
+- [x] **Install Required Packages**
   - Ensure `databricks-vectorsearch`, `databricks-langchain`, and `langchain-openai` are installed (already in `%pip install` in notebook).
 
-- [ ] **Configuration**
+- [x] **Configuration**
   - Add configuration options for:
     - Databricks Vector Search endpoint name (e.g., `master_sensory_data_endpoint`)
     - Index name (e.g., `manufacturing_dev.work_agent_barney.master_sensory_panel_joined_index`)
