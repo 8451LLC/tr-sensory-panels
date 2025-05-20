@@ -21,6 +21,7 @@ dependencies = [
     "langgraph>=0.4.5",
     "langgraph-api>=0.2.27",
     "langgraph-cli>=0.2.10",
+    "langgraph-prebuilt>=0.1.8",
     "openai>=1.79.0",
     "pytest>=8.3.5",
     "python-dotenv>=1.1.0",

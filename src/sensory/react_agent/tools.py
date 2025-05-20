@@ -22,6 +22,7 @@ from sensory.react_agent.utils import load_chat_model
 
 from databricks_langchain import DatabricksVectorSearch
 from langchain_openai import OpenAIEmbeddings
+from databricks.vector_search.client import VectorSearchClient
 
 
 async def search(query: str) -> Optional[dict[str, Any]]:
@@ -34,37 +35,6 @@ async def search(query: str) -> Optional[dict[str, Any]]:
     configuration = Configuration.from_context()
     wrapped = TavilySearch(max_results=configuration.max_search_results)
     return cast(dict[str, Any], await wrapped.ainvoke({"query": query}))
-
-
-async def vector_search_tool(
-    query: str, k: int = 5, filter: dict | None = None
-) -> list[str]:
-    """Semantic search using Databricks Vector Search (HYBRID).
-
-    Args:
-        query (str): The search query.
-        k (int, optional): Number of results to return. Defaults to 5.
-        filter (dict, optional): Optional filter for metadata search. Defaults to None.
-
-    Returns:
-        list[str]: List of full documents (as strings) matching the query.
-    """
-    configuration = Configuration.from_context()
-    embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
-    vector_store = DatabricksVectorSearch(
-        endpoint=configuration.vectorsearch_endpoint,
-        index_name=configuration.vectorsearch_index,
-        embedding=embed_model,
-        text_column="data",
-        query_type="HYBRID",
-    )
-    results = await vector_store.asimilarity_search(
-        query=query,
-        k=k,
-        filter=filter,
-    )
-    # Each result is a Document with .page_content containing the full document (str/json)
-    return [doc.page_content for doc in results]
 
 
 # Initialize the SQL Database Toolkit
@@ -85,4 +55,60 @@ llm = load_chat_model(configuration.model)
 toolkit = SQLDatabaseToolkit(db=db, llm=llm)
 sql_tools = toolkit.get_tools()
 
-TOOLS: List[Callable[..., Any]] = [vector_search_tool] + sql_tools
+
+def vector_search_summary_index(query_text: str, num_results: int = 3) -> list:
+    """
+    Perform similarity search on the summary index using Databricks Vector Search SDK.
+
+    The summary index contains high-level information about each sensory test as a whole.
+    Use this tool to retrieve general or aggregate details about sensory panels,
+    products, or test events.
+    """
+    configuration = Configuration.from_context()
+    embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
+    client = VectorSearchClient()
+    summary_index = client.get_index(
+        endpoint_name=configuration.vectorsearch_endpoint,
+        index_name=configuration.vectorsearch_summary_index,
+    )
+    query_embedding = embed_model.embed_query(query_text)
+    return summary_index.similarity_search(
+        columns=["data"],
+        query_text=query_text,
+        query_vector=query_embedding,
+        num_results=num_results,
+        query_type="HYBRID",
+        filters={},
+    )
+
+
+def vector_search_responses_index(query_text: str, num_results: int = 3) -> list:
+    """
+    Perform similarity search on the responses index using Databricks Vector Search SDK.
+
+    The responses index contains individual responses from each test and panelist.
+    Use this tool to retrieve specific feedback, ratings, or comments from panelists
+    for each sensory test.
+    """
+    configuration = Configuration.from_context()
+    embed_model = OpenAIEmbeddings(model="text-embedding-3-small")
+    client = VectorSearchClient()
+    responses_index = client.get_index(
+        endpoint_name=configuration.vectorsearch_endpoint,
+        index_name=configuration.vectorsearch_responses_index,
+    )
+    query_embedding = embed_model.embed_query(query_text)
+    return responses_index.similarity_search(
+        columns=["data"],
+        query_text=query_text,
+        query_vector=query_embedding,
+        num_results=num_results,
+        query_type="HYBRID",
+        filters={},
+    )
+
+
+TOOLS: List[Callable[..., Any]] = [
+    vector_search_summary_index,
+    vector_search_responses_index,
+] + sql_tools
