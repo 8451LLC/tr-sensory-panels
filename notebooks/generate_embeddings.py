@@ -26,7 +26,7 @@ OPENAI_API_BASE = "https://api-internal.8451.com/ai/proxy/"
 BATCH_SIZE = 60
 CALLS = 10
 PERIOD = 60
-MAX_CHARS = 30_000
+MAX_CHARS = 20_000
 
 def _set_env(var: str):
     if not os.environ.get(var):
@@ -52,7 +52,7 @@ def fetch_records(table_name: str, limit: int = None) -> DataFrame:
         .select("id", "data")
         .filter(f.col("data_embedding").isNull())
 
-        # ~2 records exceeding context window of embedding model
+        # several records exceeding embedding model context window
         .withColumn("data", f.expr(f"substring(data, 1, {MAX_CHARS})"))
     )
     if limit is not None:
@@ -138,6 +138,18 @@ def process_and_update_embeddings(target_table: str, max_records: int = None) ->
 
 # COMMAND ----------
 
+display(
+    fetch_records(f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver", 60)
+    .select(
+        'id',
+        f.length('data').alias('chars'),
+        'data'  
+    )
+    .orderBy(f.desc('chars'))
+)
+
+# COMMAND ----------
+
 process_and_update_embeddings(
     f"{CATALOG}.{SCHEMA}.master_sensory_panel_joined_silver"
 )
@@ -156,6 +168,17 @@ display(panel_joined)
 
 process_and_update_embeddings(
     f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver"
+)
+
+# COMMAND ----------
+
+display(
+    fetch_records(f"{CATALOG}.{SCHEMA}.master_sensory_responses_collected_silver", 10)
+    .select(
+        'id',
+        f.length('data').alias("length"),
+        'data'
+    )
 )
 
 # COMMAND ----------
