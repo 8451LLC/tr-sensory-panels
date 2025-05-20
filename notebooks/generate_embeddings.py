@@ -78,13 +78,22 @@ def merge_embeddings(target_table: str, embeddings_df: DataFrame) -> None:
     )
 
 
-def process_and_update_embeddings(target_table: str) -> None:
+def process_and_update_embeddings(target_table: str, max_records: int = None) -> None:
+    total_processed = 0
     while True:
         # Fetch a batch of records needing embeddings
         records_df = fetch_records(target_table, BATCH_SIZE)
         collected = records_df.collect()
         if not collected:
             break  # No more records to process
+
+        # If max_records is set, trim the batch if needed
+        if max_records is not None:
+            remaining = max_records - total_processed
+            if remaining <= 0:
+                break
+            if len(collected) > remaining:
+                collected = collected[:remaining]
 
         ids = [row.id for row in collected]
         data = [row.data for row in collected]
@@ -104,6 +113,10 @@ def process_and_update_embeddings(target_table: str) -> None:
 
         # Merge the generated embeddings into the target table
         merge_embeddings(target_table, embeddings_df)
+
+        total_processed += len(collected)
+        if max_records is not None and total_processed >= max_records:
+            break
 
 
 # COMMAND ----------
