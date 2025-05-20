@@ -45,7 +45,6 @@ openai_client = openai.OpenAI(
 
 # COMMAND ----------
 
-
 def fetch_records(table_name: str, limit: int) -> DataFrame:
     return (
         spark.read.table(table_name)
@@ -121,6 +120,10 @@ def process_and_update_embeddings(target_table: str, max_records: int = None) ->
 
 # COMMAND ----------
 
+process_and_update_embeddings(f"{CATALOG}.{SCHEMA}.master_sensory_panel_joined_silver", 120)
+
+# COMMAND ----------
+
 test = spark.read.table(
     f"{CATALOG}.{SCHEMA}.master_sensory_panel_joined_silver"
 ).filter(f.col("data_embedding").isNotNull())
@@ -156,5 +159,3 @@ index = client.create_delta_sync_index_and_wait(
     embedding_vector_column="data_embedding",
     verbose=True,
 )
-
-# COMMAND ----------
