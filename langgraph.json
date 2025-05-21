@@ -1,7 +1,8 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "agent": "./src/sensory/react_agent/graph.py:graph"
+    "react_agent": "./src/sensory/react_agent/graph.py:graph",
+    "react_agent_2": "./src/sensory/react_agent_2/graph.py:graph"
   },
   "env": ".env"
 }

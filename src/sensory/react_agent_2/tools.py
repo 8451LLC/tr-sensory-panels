@@ -17,8 +17,8 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_tavily import TavilySearch
 
 from sensory.utils.databricks import get_sqlalchemy_engine
-from sensory.react_agent.configuration import Configuration
-from sensory.react_agent.utils import load_chat_model
+from sensory.react_agent_2.configuration import Configuration
+from sensory.react_agent_2.utils import load_chat_model
 
 
 async def search(query: str) -> Optional[dict[str, Any]]:
