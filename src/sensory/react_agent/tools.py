@@ -11,14 +11,13 @@ consider implementing more robust and specialized tools tailored to your needs.
 from typing import Any, Callable, List, Optional, cast
 
 from databricks.vector_search.client import VectorSearchClient
-from langchain_community.utilities import SQLDatabase
-from langchain_community.agent_toolkits import SQLDatabaseToolkit
-from langchain_openai import OpenAIEmbeddings
 from langchain_tavily import TavilySearch
 
-from sensory.utils.databricks import get_sqlalchemy_engine
 from sensory.react_agent.configuration import Configuration
-from sensory.react_agent.utils import load_chat_model
+from sensory.react_agent.shared_services import (
+    get_sql_toolkit,
+)  # Import the shared toolkit
+from langchain_openai import OpenAIEmbeddings  # Keep this for vector search
 
 
 async def search(query: str) -> Optional[dict[str, Any]]:
@@ -33,23 +32,9 @@ async def search(query: str) -> Optional[dict[str, Any]]:
     return cast(dict[str, Any], await wrapped.ainvoke({"query": query}))
 
 
-# Initialize the SQL Database Toolkit
-engine = get_sqlalchemy_engine()
-# Moved up to access include_tables for SQLDatabase initialization
-configuration = Configuration.from_context()
-db = SQLDatabase(
-    engine=engine,
-    lazy_table_reflection=True,
-    include_tables=configuration.include_tables,  # Use configured tables
-)
-# TODO: The llm instance needs to be passed here.
-# This might require a refactor of how tools are initialized,
-# potentially moving this initialization into the graph.py or a factory
-# function. For now, we'll load a default model as a placeholder.
-# This will be addressed in a subsequent step.
-llm = load_chat_model(configuration.model)
-toolkit = SQLDatabaseToolkit(db=db, llm=llm)
-sql_tools = toolkit.get_tools()
+# Access the toolkit via the shared_services module
+sql_toolkit = get_sql_toolkit()
+sql_tools = sql_toolkit.get_tools()
 
 
 def vector_search_summary_index(query_text: str, num_results: int = 3) -> list:

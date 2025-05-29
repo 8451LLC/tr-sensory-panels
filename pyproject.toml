@@ -13,6 +13,7 @@ dependencies = [
     "databricks-sql-connector[pyarrow]>=4.0.3",
     "databricks-sqlalchemy>=2.0.6",
     "databricks-vectorsearch>=0.56",
+    "fastmcp>=2.5.1",
     "ipykernel>=6.29.5",
     "langchain>=0.3.25",
     "langchain-community>=0.3.24",
